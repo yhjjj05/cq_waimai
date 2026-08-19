@@ -15,3 +15,12 @@ public interface SetmealMapper {
     Integer countByCategoryId(Long id);
 
 }
+
+
+
+
+
+
+
+
+
