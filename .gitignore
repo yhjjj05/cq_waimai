@@ -4,3 +4,5 @@
 *.class
 *Test.java
 **/test/
+# 本地开发配置（含阿里云密钥），禁止提交
+sky-server/src/main/resources/application-dev.yml
