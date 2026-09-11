@@ -164,6 +164,17 @@ public class DishServiceImpl implements DishService {
         }
     }
 
+
+    /**
+     * 根据分类id查询菜品
+     * @param dish
+     * @return
+     */
+    @Override
+    public List<Dish> list(Dish dish) {
+        return dishMapper.list(dish);
+    }
+
 }
 
 

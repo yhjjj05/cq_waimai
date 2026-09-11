@@ -109,6 +109,22 @@ public class DishController {
 
         return Result.success();
     }
+
+
+    /**
+     * 根据分类id查询菜品
+     * @param dish
+     * @return
+     */
+    @GetMapping("/list")
+    @ApiOperation("根据分类id查询菜品")
+    public Result<List<Dish>> list(Dish dish){
+        log.info("根据分类id查询菜品：{}", dish);
+
+        List<Dish> list = dishService.list(dish);
+
+        return Result.success(list);
+    }
 }
 
 
