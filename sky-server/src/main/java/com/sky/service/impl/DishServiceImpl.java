@@ -175,6 +175,23 @@ public class DishServiceImpl implements DishService {
         return dishMapper.list(dish);
     }
 
+
+    /**
+     * 菜品起售停售
+     * @param status
+     * @param id
+     */
+    @Override
+    public void startOrStop(Integer status, Long id) {
+        // 菜品没有下级关联数据，无需像套餐那样校验，直接改状态即可
+        Dish dish = Dish.builder()
+                .id(id)
+                .status(status)
+                .build();
+
+        dishMapper.update(dish);
+    }
+
 }
 
 
