@@ -12,6 +12,7 @@ public interface DishService {
 
     /**
      * 新增菜品及对应的口味
+     *
      * @param dishDTO
      */
     public void saveWithFlavor(DishDTO dishDTO);
@@ -19,6 +20,7 @@ public interface DishService {
 
     /**
      * 菜品分页查询
+     *
      * @param dishPageQueryDTO
      * @return
      */
@@ -27,6 +29,7 @@ public interface DishService {
 
     /**
      * 菜品批量删除
+     *
      * @param ids
      */
     void deleteBatch(List<Long> ids);
@@ -34,6 +37,7 @@ public interface DishService {
 
     /**
      * 根据id查询菜品及对应的口味数据
+     *
      * @param id
      * @return
      */
@@ -42,6 +46,7 @@ public interface DishService {
 
     /**
      * 修改菜品及对应的口味信息
+     *
      * @param dishDTO
      */
     void updateWithFlavor(DishDTO dishDTO);
@@ -49,6 +54,7 @@ public interface DishService {
 
     /**
      * 根据分类id查询菜品
+     *
      * @param dish
      * @return
      */
@@ -57,8 +63,18 @@ public interface DishService {
 
     /**
      * 菜品起售停售
+     *
      * @param status
      * @param id
      */
     void startOrStop(Integer status, Long id);
+
+
+    /**
+     * 条件查询菜品和口味
+     *
+     * @param dish
+     * @return
+     */
+    List<DishVO> listWithFlavor(Dish dish);
 }

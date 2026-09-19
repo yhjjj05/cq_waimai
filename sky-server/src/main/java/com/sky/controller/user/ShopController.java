@@ -1,5 +1,6 @@
 package com.sky.controller.user;
 
+import com.sky.constant.ShopConstant;
 import com.sky.result.Result;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -14,8 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class ShopController {
 
-    public static final String KEY = "SHOP_STATUS";
-
     @Autowired
     private RedisTemplate redisTemplate;
 
@@ -27,7 +26,12 @@ public class ShopController {
     @GetMapping("/status")
     @ApiOperation("获取店铺营业状态")
     public Result<Integer> getStatus(){
-        Integer status = (Integer) redisTemplate.opsForValue().get(KEY);
+        Integer status = (Integer) redisTemplate.opsForValue().get(ShopConstant.SHOP_STATUS_KEY);
+
+        // 从未设置过营业状态时，默认按打烊处理，避免返回 null
+        if (status == null) {
+            status = ShopConstant.STATUS_CLOSED;
+        }
 
         log.info("获取店铺营业状态：{}",status);
 
