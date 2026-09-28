@@ -19,11 +19,31 @@
         select * from orders where number = #{orderNumber}
     </select>
 
-    <!--
-        动态更新：只更新 orders 中非 null 的字段，供支付、接单、拒单、派送、完成、取消等场景复用。
-        注意：Orders.packAmount / tablewareNumber 在实体里是原始类型 int，<if test="xxx != null"> 对原始类型
-        恒为 true，会把这两列覆盖成 0，所以这里刻意不包含这两列。
-    -->
+    <select id="pageQuery" resultType="com.sky.vo.OrderVO">
+        select * from orders
+        <where>
+            <if test="number != null and number != ''">
+                and number like concat('%', #{number}, '%')
+            </if>
+            <if test="phone != null and phone != ''">
+                and phone like concat('%', #{phone}, '%')
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="userId != null">
+                and user_id = #{userId}
+            </if>
+            <if test="beginTime != null">
+                and order_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null">
+                and order_time &lt;= #{endTime}
+            </if>
+        </where>
+        order by order_time desc
+    </select>
+
     <update id="update" parameterType="Orders">
         update orders
         <set>

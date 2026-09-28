@@ -1,8 +1,11 @@
 package com.sky.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
+import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.*;
@@ -10,10 +13,12 @@ import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.*;
+import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -209,6 +214,149 @@ public class OrderServiceImpl implements OrderService {
         orderMapper.update(orders);
     }
 
+
+    /**
+     * 历史订单查询
+     * @param ordersPageQueryDTO
+     * @return
+     */
+    @Override
+    public PageResult pageQuery(OrdersPageQueryDTO ordersPageQueryDTO) {
+        PageHelper.startPage(ordersPageQueryDTO.getPage(), ordersPageQueryDTO.getPageSize());
+        Page<Orders> page = orderMapper.pageQuery(ordersPageQueryDTO);
+
+        // 查询到的每一页是一个list，由多个订单构成，每个订单还有明细
+        List<OrderVO> list = new ArrayList();
+
+        // 查询出订单明细，并封装入OrderVO进行响应
+        if (page != null && page.getTotal() > 0) {
+            for (Orders orders : page) {
+                Long orderId = orders.getId();
+
+                // 查询订单明细
+                List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(orderId);
+
+                OrderVO orderVO = new OrderVO();
+                BeanUtils.copyProperties(orders, orderVO);
+                orderVO.setOrderDetailList(orderDetails);
+
+                list.add(orderVO);
+            }
+        }
+
+        return new PageResult(page.getTotal(), list);
+    }
+
+
+    /**
+     * 查询订单详情
+     * @param id
+     * @return
+     */
+    @Override
+    public OrderVO details(Long id) {
+        // 根据id查询订单
+        Orders orders = orderMapper.getById(id);
+
+        // 根据订单id查询明细
+        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(orders.getId());
+
+        //封装成VO
+        OrderVO orderVO = new OrderVO();
+        BeanUtils.copyProperties(orders, orderVO);
+        orderVO.setOrderDetailList(orderDetailList);
+
+        return orderVO;
+    }
+
+
+    /**
+     * 用户取消订单
+     * @param id
+     */
+    @Override
+    public void userCancelById(Long id) throws Exception {
+        // 根据id查询订单
+        Orders ordersDB = orderMapper.getById(id);
+
+        // 订单是否存在
+        if(ordersDB == null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        // 订单状态
+        if (ordersDB.getStatus() > 2){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Orders orders = new Orders();
+        orders.setId(ordersDB.getId());
+
+        // 待接单状态说明用户已支付，取消前必须先退款；待付款状态没付过钱，直接取消
+        if (Orders.TO_BE_CONFIRMED.equals(ordersDB.getStatus())) {
+            // 调用微信支付退款接口。
+            // 金额必须与 payment() 里实付的一致（微信沙箱是 0.01），
+            // 填 ordersDB.getAmount() 会因"退款额超过实付额"被微信拒绝。
+            weChatPayUtil.refund(ordersDB.getNumber(), ordersDB.getNumber(),
+                    new BigDecimal(0.01), new BigDecimal(0.01));
+
+            // 支付状态修改为已退款
+            orders.setPayStatus(Orders.REFUND);
+        }
+
+        // 更新订单状态、取消原因、取消时间
+        orders.setStatus(Orders.CANCELLED);
+        orders.setCancelReason("用户取消");
+        orders.setCancelTime(LocalDateTime.now());
+
+        orderMapper.update(orders);
+    }
+
+
+    /**
+     * 再来一单
+     * @param id
+     */
+    @Override
+    @Transactional
+    public void repetition(Long id) {
+        // 查询当前用户id(shopping_cart需要)
+        Long userId = BaseContext.getCurrentId();
+
+        // 校验订单存在且属于当前用户，防止改 URL 里的 id 把别人的单加进自己购物车
+        Orders ordersDB = orderMapper.getById(id);
+        if (ordersDB == null || !userId.equals(ordersDB.getUserId())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        // 根据订单id查询当前订单详情
+        List<OrderDetail> orderDetailList = orderDetailMapper.getByOrderId(id);
+
+        // 将其添加到购物车
+        for (OrderDetail orderDetail : orderDetailList) {
+            ShoppingCart shoppingCart = new ShoppingCart();
+
+            // 复制菜品信息；id 必须排除——那是 order_detail 的主键，购物车主键由数据库自增
+            BeanUtils.copyProperties(orderDetail, shoppingCart, "id");
+            shoppingCart.setUserId(userId);
+
+            // 购物车同一商品只保留一行、数量累加，与 addShoppingCart 的行为保持一致
+            List<ShoppingCart> existList = shoppingCartMapper.list(shoppingCart);
+
+            if (existList != null && !existList.isEmpty()) {
+                ShoppingCart cart = existList.get(0);
+                cart.setNumber(cart.getNumber() + orderDetail.getNumber());
+
+                shoppingCartMapper.updateNumberById(cart);
+            } else {
+                shoppingCart.setCreateTime(LocalDateTime.now());
+
+                shoppingCartMapper.insert(shoppingCart);
+            }
+        }
+    }
+
+    //
 }
 
 
