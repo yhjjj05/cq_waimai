@@ -77,6 +77,14 @@ public interface OrderMapper {
      * @return
      */
     Double sumByMap(HashMap map);
+
+
+    /**
+     * 查询具体某一天的订单数
+     * @param map
+     * @return
+     */
+    Integer countByMap(HashMap map);
 }
 
 
