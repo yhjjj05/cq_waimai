@@ -1,10 +1,13 @@
 package com.sky.service.impl;
 
+import com.sky.dto.GoodsSalesDTO;
 import com.sky.entity.Orders;
+import com.sky.mapper.OrderDetailMapper;
 import com.sky.mapper.OrderMapper;
 import com.sky.mapper.UserMapper;
 import com.sky.service.ReportService;
 import com.sky.vo.OrderReportVO;
+import com.sky.vo.SalesTop10ReportVO;
 import com.sky.vo.TurnoverReportVO;
 import com.sky.vo.UserReportVO;
 import org.apache.commons.lang3.StringUtils;
@@ -17,6 +20,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ReportServiceImpl implements ReportService {
@@ -26,6 +30,28 @@ public class ReportServiceImpl implements ReportService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private OrderDetailMapper orderDetailMapper;
+
+
+    /**
+     * 获取从begin到end（含首尾）每天的日期
+     * @param begin
+     * @param end
+     * @return
+     */
+    private List<LocalDate> getDateList(LocalDate begin, LocalDate end) {
+        List<LocalDate> dateList = new ArrayList<>();
+
+        dateList.add(begin);
+        while (!begin.equals(end)) {
+            begin = begin.plusDays(1);
+            dateList.add(begin);
+        }
+
+        return dateList;
+    }
 
 
     /**
@@ -37,13 +63,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public TurnoverReportVO getTurnoverStatistics(LocalDate begin, LocalDate end) {
         // 存放从begin到end每天的日期
-        List<LocalDate> dateList = new ArrayList<>();
-
-        dateList.add(begin);
-        while (!begin.equals(end)) {
-            begin = begin.plusDays(1);
-            dateList.add(begin);
-        }
+        List<LocalDate> dateList = getDateList(begin, end);
 
         // 存放具体某一天的营业额
         List<Double> turnoverList = new ArrayList<>();
@@ -81,13 +101,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public UserReportVO getUserStatistics(LocalDate begin, LocalDate end) {
         // 存放从begin到end每天的日期
-        List<LocalDate> dateList = new ArrayList<>();
-
-        dateList.add(begin);
-        while (!begin.equals(end)) {
-            begin = begin.plusDays(1);
-            dateList.add(begin);
-        }
+        List<LocalDate> dateList = getDateList(begin, end);
 
         // 存放具体某一天的总用户量，新用户量
         List<Integer> totalUserList = new ArrayList<>();
@@ -125,13 +139,7 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public OrderReportVO getOrdersStatistics(LocalDate begin, LocalDate end) {
         // 存放从begin到end每天的日期
-        List<LocalDate> dateList = new ArrayList<>();
-
-        dateList.add(begin);
-        while (!begin.equals(end)) {
-            begin = begin.plusDays(1);
-            dateList.add(begin);
-        }
+        List<LocalDate> dateList = getDateList(begin, end);
 
         // 存放具体某一天的总订单数，有效订单数
         List<Integer> orderCountList = new ArrayList<>();
@@ -177,6 +185,37 @@ public class ReportServiceImpl implements ReportService {
         map.put("status", status);
 
         return orderMapper.countByMap(map);
+    }
+
+
+    /**
+     * 销量Top10
+     * @param begin
+     * @param end
+     * @return
+     */
+    @Override
+    public SalesTop10ReportVO getSalesTop10(LocalDate begin, LocalDate end) {
+        LocalDateTime beginTime = LocalDateTime.of(begin, LocalTime.MIN);
+        LocalDateTime endTime = LocalDateTime.of(end, LocalTime.MAX);
+
+        List<GoodsSalesDTO> salesTop10 = orderMapper.getSalesTop10(beginTime, endTime);
+
+        // 商品名称列表，以逗号分隔
+        String nameList = salesTop10.stream()
+                .map(GoodsSalesDTO::getName)
+                .collect(Collectors.joining(","));
+
+        // 销量列表，以逗号分隔
+        String numberList = salesTop10.stream()
+                .map(GoodsSalesDTO::getNumber)
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+        return SalesTop10ReportVO.builder()
+                .nameList(nameList)
+                .numberList(numberList)
+                .build();
     }
 }
 
